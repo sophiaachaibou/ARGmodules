@@ -1,0 +1,13 @@
+##############################################################################
+#	Fichier de configuration snakemake pour le module_CARD_rgi
+#
+#	Auteur : Sophia Achaibou
+#	Mail : sophia.achaibou@gmail.com
+##############################################################################
+
+
+#Indiquer le répertoire ou se situe les échantillons sous format fasta
+directory : "../data/*.fastq"
+
+
+

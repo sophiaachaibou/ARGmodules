@@ -1,0 +1,47 @@
+#######################################################
+#	Module snakemake de parsing pARoM 
+#	
+#
+#	Auteur : Sophia Achaibou
+#	Mail : sophia.achaibou@gmail.com
+#######################################################
+
+
+import glob
+
+#config file 
+configfile: "config.yaml"
+
+#list of sample
+SAMPLE=[]
+
+
+#get all sample file in the directory given by the user
+sampleName=glob.glob(config["directory"])
+print(sampleName)
+
+for name in sampleName : #put each file name in the wildcards "SAMPLE"
+	name=name.replace('.fasta', '') #delete extension file
+	name=name.replace('originFile/', '') #delete the path
+	SAMPLE.append(name)
+print('list of sample :')
+print(SAMPLE)
+
+
+
+rule all : 
+	input : 
+		expand("data/{sample}/{sample}_align_sorted_mapped.sam", sample=SAMPLE),
+		expand("results/{sample}_allResults.txt", sample=SAMPLE),
+		expand("results/{sample}_abundanceResults.txt", sample=SAMPLE)
+
+rule get_data:
+	input : 
+		A = "data/{sample}/{sample}_align_sorted_mapped.sam",
+		B = "originFile/{sample}.fasta"
+	output : 
+		C = "results/{sample}_allResults.txt",
+		D = "results/{sample}_abundanceResults.txt"
+	shell : """python pARoM.py {input.A} {input.B} {output.C} {output.D} """
+		
+		

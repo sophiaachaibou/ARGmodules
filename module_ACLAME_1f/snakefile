@@ -1,0 +1,97 @@
+##############################################################################
+#	MODULE ACLAME
+#	Module snakemake de mapping sur la base de données ACLAME avec les outil bwa 
+#	et samtools
+#
+#	Auteur : Sophia Achaibou
+#	Mail : sophia.achaibou@gmail.com
+##############################################################################
+
+
+import glob
+
+#config file 
+configfile: "config.yaml"
+
+#list of sample
+SAMPLE=[]
+
+#get all sample file in the directory given by the user
+sampleName=glob.glob(config["directory"])
+print(sampleName)
+
+for name in sampleName : #put each file name in the wildcards "SAMPLE"
+	name=name.replace('.fasta', '') #delete extension file
+	name=name.replace('../data/', '') #delete the path
+	SAMPLE.append(name)
+print('list of sample :')
+print(SAMPLE)
+
+
+rule all : 
+	input : 
+		expand("../data/{sample}.fasta", sample=SAMPLE),
+		expand("{sample}_results/{sample}_align.sam", sample=SAMPLE),
+		expand("{sample}_results/{sample}_align.bam", sample=SAMPLE),
+		expand("{sample}_results/{sample}_align_sorted.bam", sample=SAMPLE),
+		expand("{sample}_results/{sample}_align_sorted_mapped.bam", sample=SAMPLE),
+		expand("{sample}_results/{sample}_align_sorted_mapped.fastq", sample=SAMPLE),
+		expand("{sample}_results/{sample}_align_sorted_mapped.fasta", sample=SAMPLE),
+
+
+rule align_onACLAME :
+	input :  "../data/{sample}.fasta"
+	output : "{sample}_results/{sample}_align.sam"
+	params :
+			db=config["bdd"]
+	message : 
+			'Alignement de {input} sur la base de données : {params.db} ...'
+	shell : """bwa mem {params.db} {input} > {output}"""
+
+rule sam2bam :
+	input : "{sample}_results/{sample}_align.sam"
+	output : "{sample}_results/{sample}_align.bam"
+	message : 
+			'Conversion sam2bam de {input} ...'
+	shell : """samtools view -b {input} > {output}"""
+
+
+rule tri :
+	input : "{sample}_results/{sample}_align.bam"
+	output : "{sample}_results/{sample}_align_sorted.bam"
+	message : 
+			'Tri du fichier {input} ...'
+	#shell : """samtools sort {input} > {output} | samtools index {input}"""
+	shell : """samtools sort {input} > {output} """
+
+rule index : 
+	input : "{sample}_results/{sample}_align_sorted.bam"
+	message : 
+			'Indexation de {input} ...'	
+	shell : """samtools index {input}"""
+
+
+rule get_mapped :
+	input : "{sample}_results/{sample}_align_sorted.bam"
+	output : "{sample}_results/{sample}_align_sorted_mapped.bam"
+	message : 
+			'Récupération des reads mappés pour {input} ...'
+	shell : """samtools view -b -F 4 {input} > {output} """
+
+
+rule bam2fastq:
+	input : "{sample}_results/{sample}_align_sorted_mapped.bam"
+	output : "{sample}_results/{sample}_align_sorted_mapped.fastq"
+	message : 
+			'Conversion bam2fastq pour {input} ...'
+	shell : """samtools bam2fq -F 0x900 {input} > {output} """
+
+rule bam2fasta:
+	input : "{sample}_results/{sample}_align_sorted_mapped.bam"
+	output : "{sample}_results/{sample}_align_sorted_mapped.fasta"
+	message : 
+			'Conversion bam2fasta pour {input} ...'
+	shell : """samtools fasta -F 0x900 {input} > {output} """
+	
+
+

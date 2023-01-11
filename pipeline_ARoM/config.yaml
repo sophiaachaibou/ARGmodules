@@ -1,0 +1,16 @@
+##############################################################################
+#	Fichier de configuration snakemake pour le module_ARoM
+#
+#	Auteur : Sophia Achaibou
+#	Mail : sophia.achaibou@gmail.com
+##############################################################################
+
+
+#Indiquer le répertoire ou se situe les échantillons sous format fasta
+directory : "../data/*.fasta"
+
+#Indiquer le chemin vers la base de données que l'on souhaite utiliser sous format fasta : 
+#ACLAME
+bdd : "../bdd/all_aclame_gene.fasta"
+
+

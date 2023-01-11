@@ -1,0 +1,124 @@
+#######################################################
+#	Module snakemake ARoM 
+#	
+#
+#	Auteur : Sophia Achaibou
+#	Mail : sophia.achaibou@gmail.com
+#######################################################
+
+import glob
+
+#config file 
+configfile: "config.yaml"
+
+#list of sample
+SAMPLE=[]
+
+
+#get all sample file in the directory given by the user
+sampleName=glob.glob(config["directory"])
+print(sampleName)
+
+for name in sampleName : #put each file name in the wildcards "SAMPLE"
+	name=name.replace('.fasta', '') #delete extension file
+	name=name.replace('../data/', '') #delete the path
+	SAMPLE.append(name)
+print('list of sample :')
+print(SAMPLE)
+
+#importation des pipelines snakemake d'interet
+#subworkflow aclame :
+#	workdir : "../module_ACLAME_1f"
+#	snakefile : "../module_ACLAME_1f/snakefile"
+#	configfile: "../module_ACLAME_1f/config.yaml"
+
+rule all :
+	input : 
+			expand("../data/{sample}.fasta", sample=SAMPLE),
+			expand("{sample}_results/{sample}_alignACLAME.sam", sample=SAMPLE),
+			expand("{sample}_results/{sample}_alignACLAME.bam", sample=SAMPLE),
+			expand("{sample}_results/{sample}_alignACLAME_sorted.bam", sample=SAMPLE),
+			expand("{sample}_results/{sample}_alignACLAME_sorted_mapped.bam", sample=SAMPLE),
+			expand("{sample}_results/{sample}_alignACLAME_sorted_mapped.fastq", sample=SAMPLE),
+			expand("{sample}_results/{sample}_alignACLAME_sorted_mapped.fasta", sample=SAMPLE),
+			expand("{sample}_results/{sample}_alignACLAME_alignCARD.sam", sample=SAMPLE),
+			expand("{sample}_results/{sample}_alignACLAME_alignCARD_allResults.txt", sample=SAMPLE),
+			expand("{sample}_results/{sample}_alignACLAME_alignCARD_abundanceResults.txt", sample=SAMPLE)
+
+
+rule align_onACLAME :
+	input :  "../data/{sample}.fasta"
+	output : "{sample}_results/{sample}_alignACLAME.sam"
+	params :
+			db=config["bdd"]
+	message : 
+			'Alignement de {input} sur la base de données : {params.db} ...'
+	shell : """bwa mem {params.db} {input} > {output}"""
+
+rule sam2bam :
+	input : "{sample}_results/{sample}_alignACLAME.sam"
+	output : "{sample}_results/{sample}_alignACLAME.bam"
+	message : 
+			'Conversion sam2bam de {input} ...'
+	shell : """samtools view -b {input} > {output}"""
+
+
+rule tri :
+	input : "{sample}_results/{sample}_alignACLAME.bam"
+	output : "{sample}_results/{sample}_alignACLAME_sorted.bam"
+	message : 
+			'Tri du fichier {input} ...'
+	#shell : """samtools sort {input} > {output} | samtools index {input}"""
+	shell : """samtools sort {input} > {output} """
+
+rule index : 
+	input : "{sample}_results/{sample}_alignACLAME_sorted.bam"
+	message : 
+			'Indexation de {input} ...'	
+	shell : """samtools index {input}"""
+
+
+rule get_mapped :
+	input : "{sample}_results/{sample}_alignACLAME_sorted.bam"
+	output : "{sample}_results/{sample}_alignACLAME_sorted_mapped.bam"
+	message : 
+			'Récupération des reads mappés pour {input} ...'
+	shell : """samtools view -b -F 4 {input} > {output} """
+
+
+rule bam2fastq:
+	input : "{sample}_results/{sample}_alignACLAME_sorted_mapped.bam"
+	output : "{sample}_results/{sample}_alignACLAME_sorted_mapped.fastq"
+	message : 
+			'Conversion bam2fastq pour {input} ...'
+	shell : """samtools bam2fq -F 0x900 {input} > {output} """
+
+rule bam2fasta:
+	input : "{sample}_results/{sample}_alignACLAME_sorted_mapped.bam"
+	output : "{sample}_results/{sample}_alignACLAME_sorted_mapped.fasta"
+	message : 
+			'Conversion bam2fasta pour {input} ...'
+	shell : """samtools fasta -F 0x900 {input} > {output} """
+	
+rule align_onCARD :
+	input :  "{sample}_results/{sample}_alignACLAME_sorted_mapped.fastq"
+	output : "{sample}_results/{sample}_alignACLAME_alignCARD.sam"
+	params :
+                prefix = "{sample}_results/{sample}_alignACLAME_alignCARD"
+	message : 
+			'Alignement de {input} sur la base de données : CARD ...'
+	shell : """rgi bwt -1 {input} -a bowtie2 -o {params.prefix}"""
+
+rule get_data:
+	input : 
+		A = "{sample}_results/{sample}_alignACLAME_alignCARD.sam",
+		B = "../data/{sample}.fasta"
+	output : 
+		C = "{sample}_results/{sample}_alignACLAME_alignCARD_allResults.txt",
+		D = "{sample}_results/{sample}_alignACLAME_alignCARD_abundanceResults.txt"
+	shell : """python pARoM.py {input.A} {input.B} {output.C} {output.D} """
+		
+		
+
+
+

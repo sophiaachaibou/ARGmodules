@@ -1,0 +1,57 @@
+##############################################################################
+#	MODULE CARD RGI
+#	Module snakemake de mapping sur la base de données CARD avec l'outil rgi 
+#
+#	Auteur : Sophia Achaibou
+#	Mail : sophia.achaibou@gmail.com
+##############################################################################
+
+
+import glob
+
+#config file 
+configfile: "config.yaml"
+
+#list of sample
+SAMPLE=[]
+
+#get all sample file in the directory given by the user
+sampleName=glob.glob(config["directory"])
+print(sampleName)
+
+for name in sampleName : #put each file name in the wildcards "SAMPLE"
+	name=name.replace('.fastq', '') #delete extension file
+	name=name.replace('../data/', '') #delete the path
+	SAMPLE.append(name)
+print('list of sample :')
+print(SAMPLE)
+
+
+rule all : 
+	input : 
+		#expand("../data/{sample}.fasta", sample=SAMPLE),
+		expand("../data/{sample}.fastq", sample=SAMPLE),
+		expand("{sample}_results/{sample}.sam", sample=SAMPLE)
+		
+
+#rule fasta2fastq :
+#	input :  "../data/{sample}.fasta"
+#	output : "../data/{sample}.fastq"
+#	message : 
+#			'Conversion {input} en {output} ...'
+#	shell : """bioconvert {input} {output}"""
+
+
+rule get_dir :
+	params : prefix = "{sample}_results/"
+	shell : """mkdir {params.prefix}"""
+
+rule align_onCARD :
+	input :  "../data/{sample}.fastq"
+	output : "{sample}_results/{sample}.sam"
+	params :
+                prefix = "{sample}_results/{sample}"
+	message : 
+			'Alignement de {input} sur la base de données : CARD ...'
+	shell : """rgi bwt -1 {input} -a bowtie2 -o {params.prefix}"""
+
